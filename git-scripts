@@ -32,12 +32,10 @@ help() {
 
 # clones or pulls the latest git-scripts
 install_latest() {
-  if [ -d "$GIT_SCRIPTS_DIR" ]; then
-    cd "$GIT_SCRIPTS_DIR" || exit 1
-  else
+  if [ ! -d "$GIT_SCRIPTS_DIR" ]; then
     git clone "$GIT_SCRIPTS_URL" "$GIT_SCRIPTS_DIR"
-    cd "$GIT_SCRIPTS_DIR" || exit 1
   fi
+  cd "$GIT_SCRIPTS_DIR" || exit 1
 
   # if not on the correct branch, checkout the correct branch
   if [ "$(git rev-parse --abbrev-ref HEAD)" != "$GIT_SCRIPTS_BRANCH" ]; then
@@ -55,14 +53,12 @@ install_latest() {
 # update the rc file to add the git-scripts directory to the PATH
 update_rc() {
   # check if `# git-scripts` exists in ~/.bashrc or ~/.zshrc
-  if ! grep -q "# git-scripts" ~/.bashrc; then
-    echo -e "\n\n# git-scripts\nexport PATH=\"\$PATH:\$HOME/.scripts\"" >>~/.bashrc
-    sed -i '/./,/^$/!d' "$HOME/.bashrc"
-  fi
-  if ! grep -q "# git-scripts" ~/.zshrc; then
-    echo -e "\n\n# git-scripts\nexport PATH=\"\$PATH:\$HOME/.scripts\"" >>~/.zshrc
-    sed -i '/./,/^$/!d' "$HOME/.zshrc"
-  fi
+  for rc in $HOME/.bashrc $HOME/.zshrc; do
+    if ! grep -q "# git-scripts" "$rc"; then
+      echo -e "\n\n# git-scripts\nexport PATH=\"\$PATH:\$HOME/.scripts\"" >>"$rc"
+      sed -i '/./,/^$/!d' "$rc"
+    fi
+  done
 }
 
 # Executed remotely clones git-scripts to $GIT_SCRIPTS_DIR
@@ -100,6 +96,7 @@ done
 # if no command is provided, show interactive menu
 if [ $# -eq 0 ]; then
   # Get all available scripts
+  # shellcheck disable=SC2207
   scripts=($(find "$GIT_SCRIPTS_DIR" -maxdepth 1 -name "*.sh" -printf "%f\n" | sed 's/\.sh$//'))
   selected=()
 
@@ -111,7 +108,7 @@ if [ $# -eq 0 ]; then
     # Show menu with current state
     for i in "${!scripts[@]}"; do
       check="[ ]"
-      [[ " ${selected[@]} " =~ " ${scripts[$i]} " ]] && check="[X]"
+      printf '%s\n' "${selected[@]}" | grep -q "^${scripts[$i]}$" && check="[X]"
       echo "$((i + 1)). $check ${scripts[$i]}"
     done
     echo "----------------------------------------"
@@ -122,7 +119,7 @@ if [ $# -eq 0 ]; then
     [0-9]*)
       if [ "$choice" -gt 0 ] && [ "$choice" -le "${#scripts[@]}" ]; then
         script="${scripts[$((choice - 1))]}"
-        if [[ " ${selected[@]} " =~ " $script " ]]; then
+        if printf '%s\n' "${selected[@]}" | grep -q "^${script}$"; then
           selected=("${selected[@]/$script/}")
         else
           selected+=("$script")
