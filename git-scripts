@@ -1,0 +1,81 @@
+#!/bin/bash
+
+set -e
+
+GIT_SCRIPTS_BRANCH=${GIT_SCRIPTS_BRANCH:-main}
+GIT_SCRIPTS_URL=${GIT_SCRIPTS_URL:-https://github.com/jasenmichael/git-scripts.git}
+GIT_SCRIPTS_DIR=$HOME/.scripts
+
+START_DIR=$(pwd)
+
+trap 'cd $START_DIR' EXIT
+
+help() {
+  echo "git-scripts"
+  echo "Usage: git-scripts [command]"
+  echo "Commands:"
+  echo "  ls | list - List all scripts in $GIT_SCRIPTS_DIR"
+  echo "  install - Install the latest git-scripts"
+}
+
+# clones or pulls the latest git-scripts
+install_latest() {
+  mkdir -p "$GIT_SCRIPTS_DIR"
+  cd "$GIT_SCRIPTS_DIR" || exit 1
+  if [ -d "$GIT_SCRIPTS_DIR" ]; then
+    git pull
+  else
+    git clone "$GIT_SCRIPTS_URL" "$GIT_SCRIPTS_DIR"
+  fi
+
+  # make all scripts executable
+  chmod +x "$GIT_SCRIPTS_DIR/git-scripts"
+  find "$GIT_SCRIPTS_DIR" -type f -name "*.sh" -exec chmod +x {} \;
+}
+
+# update the rc file to add the git-scripts directory to the PATH
+update_rc() {
+  # check if `# git-scripts` exists in ~/.bashrc or ~/.zshrc
+  if ! grep -q "# git-scripts" ~/.bashrc; then
+    echo -e "\n\n# git-scripts\nexport PATH=\"\$PATH:\$HOME/.scripts\"" >>~/.bashrc
+    sed -i '/./,/^$/!d' "$HOME/.bashrc"
+  fi
+  if ! grep -q "# git-scripts" ~/.zshrc; then
+    echo -e "\n\n# git-scripts\nexport PATH=\"\$PATH:\$HOME/.scripts\"" >>~/.zshrc
+    sed -i '/./,/^$/!d' "$HOME/.zshrc"
+  fi
+}
+
+# Executed remotely clones git-scripts to $GIT_SCRIPTS_DIR
+# shellcheck disable=SC2128
+if [ "$0" != "$BASH_SOURCE" ]; then
+  install_latest
+  update_rc
+  echo "git-scripts installed and updated in $GIT_SCRIPTS_DIR"
+  echo "Please restart your shell to apply the changes"
+  exit 0
+fi
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+  -h | --help)
+    help
+    exit 0
+    ;;
+  ls | list)
+    find "$GIT_SCRIPTS_DIR" -maxdepth 1 -name "*.sh" -printf "%f\n" | sed 's/\.sh$//'
+    exit 0
+    ;;
+  *)
+    "$GIT_SCRIPTS_DIR/$1.sh"
+    exit 0
+    ;;
+  esac
+done
+
+# if no command is provided, prompt the user for a command
+if [ $# -eq 0 ]; then
+  echo "Available commands:"
+  find "$GIT_SCRIPTS_DIR" -maxdepth 1 -name "*.sh" -printf "%f\n" | sed 's/\.sh$//'
+  exit 0
+fi
