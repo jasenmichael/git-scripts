@@ -7,26 +7,45 @@ GIT_SCRIPTS_URL=${GIT_SCRIPTS_URL:-https://github.com/jasenmichael/git-scripts.g
 GIT_SCRIPTS_DIR=$HOME/.scripts
 
 START_DIR=$(pwd)
-
 trap 'cd $START_DIR' EXIT
 
 help() {
-  echo "git-scripts"
+  echo "git-scripts - A collection of useful Git scripts"
+  echo
   echo "Usage: git-scripts [command]"
+  echo
   echo "Commands:"
-  echo "  ls | list - List all scripts in $GIT_SCRIPTS_DIR"
-  echo "  install - Install the latest git-scripts"
+  echo "  ls, list         List all available scripts in $GIT_SCRIPTS_DIR"
+  echo "  update           Update git-scripts to the latest version"
+  echo "  <script-name>    Execute a specific script from the collection"
+  echo
+  echo "Options:"
+  echo "  -h, --help       Show this help message"
+  echo
+  echo "Environment Variables:"
+  echo "  GIT_SCRIPTS_BRANCH  Branch to install from (default: main)"
+  echo "  GIT_SCRIPTS_URL     Repository URL (default: https://github.com/jasenmichael/git-scripts.git)"
+  echo "  GIT_SCRIPTS_DIR     Installation directory (default: $HOME/.scripts)"
+  echo
+  echo "Note: After installation, please restart your shell to apply PATH changes."
 }
 
 # clones or pulls the latest git-scripts
 install_latest() {
-
   if [ -d "$GIT_SCRIPTS_DIR" ]; then
     cd "$GIT_SCRIPTS_DIR" || exit 1
-    git pull
   else
     git clone "$GIT_SCRIPTS_URL" "$GIT_SCRIPTS_DIR"
+    cd "$GIT_SCRIPTS_DIR" || exit 1
   fi
+
+  # if not on the correct branch, checkout the correct branch
+  if [ "$(git rev-parse --abbrev-ref HEAD)" != "$GIT_SCRIPTS_BRANCH" ]; then
+    git checkout "$GIT_SCRIPTS_BRANCH"
+  fi
+
+  # pull the latest changes
+  git pull origin "$GIT_SCRIPTS_BRANCH"
 
   # make all scripts executable
   chmod +x "$GIT_SCRIPTS_DIR/git-scripts"
@@ -66,6 +85,11 @@ while [[ $# -gt 0 ]]; do
     find "$GIT_SCRIPTS_DIR" -maxdepth 1 -name "*.sh" -printf "%f\n" | sed 's/\.sh$//'
     exit 0
     ;;
+  update)
+    install_latest
+    update_rc
+    exit 0
+    ;;
   *)
     "$GIT_SCRIPTS_DIR/$1.sh"
     exit 0
@@ -73,9 +97,58 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# if no command is provided, prompt the user for a command
+# if no command is provided, show interactive menu
 if [ $# -eq 0 ]; then
-  echo "Available commands:"
-  find "$GIT_SCRIPTS_DIR" -maxdepth 1 -name "*.sh" -printf "%f\n" | sed 's/\.sh$//'
-  exit 0
+  # Get all available scripts
+  scripts=($(find "$GIT_SCRIPTS_DIR" -maxdepth 1 -name "*.sh" -printf "%f\n" | sed 's/\.sh$//'))
+  selected=()
+
+  echo "Select scripts to run (enter number to toggle, r to run selected, q to quit):"
+  echo "----------------------------------------"
+
+  while true; do
+    clear
+    # Show menu with current state
+    for i in "${!scripts[@]}"; do
+      check="[ ]"
+      [[ " ${selected[@]} " =~ " ${scripts[$i]} " ]] && check="[X]"
+      echo "$((i + 1)). $check ${scripts[$i]}"
+    done
+    echo "----------------------------------------"
+    echo "Enter number to toggle, r to run selected, q to quit"
+
+    read -r choice
+    case $choice in
+    [0-9]*)
+      if [ "$choice" -gt 0 ] && [ "$choice" -le "${#scripts[@]}" ]; then
+        script="${scripts[$((choice - 1))]}"
+        if [[ " ${selected[@]} " =~ " $script " ]]; then
+          selected=("${selected[@]/$script/}")
+        else
+          selected+=("$script")
+        fi
+      fi
+      ;;
+    [rR])
+      if [ ${#selected[@]} -eq 0 ]; then
+        echo "No scripts selected."
+        sleep 1
+      else
+        clear
+        for script in "${selected[@]}"; do
+          if [ -n "$script" ]; then # Skip empty entries
+            echo "----------------------------------------"
+            echo "Running $script..."
+            "$GIT_SCRIPTS_DIR/$script.sh"
+            echo "----------------------------------------"
+          fi
+        done
+        exit 0
+      fi
+      ;;
+    [qQ])
+      exit 0
+      ;;
+    esac
+  done
 fi
