@@ -20,9 +20,9 @@ help() {
 
 # clones or pulls the latest git-scripts
 install_latest() {
-  mkdir -p "$GIT_SCRIPTS_DIR"
-  cd "$GIT_SCRIPTS_DIR" || exit 1
+
   if [ -d "$GIT_SCRIPTS_DIR" ]; then
+    cd "$GIT_SCRIPTS_DIR" || exit 1
     git pull
   else
     git clone "$GIT_SCRIPTS_URL" "$GIT_SCRIPTS_DIR"
