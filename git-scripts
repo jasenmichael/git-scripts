@@ -37,13 +37,8 @@ install_latest() {
   fi
   cd "$GIT_SCRIPTS_DIR" || exit 1
 
-  # if not on the correct branch, checkout the correct branch
-  if [ "$(git rev-parse --abbrev-ref HEAD)" != "$GIT_SCRIPTS_BRANCH" ]; then
-    git checkout "$GIT_SCRIPTS_BRANCH"
-  fi
-
   # pull the latest changes
-  git pull origin "$GIT_SCRIPTS_BRANCH"
+  git fetch origin && git reset --hard "origin/$GIT_SCRIPTS_BRANCH"
 
   # make all scripts executable
   chmod +x "$GIT_SCRIPTS_DIR/git-scripts"
