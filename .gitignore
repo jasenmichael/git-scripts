@@ -1,2 +1,9 @@
 dev
 *.sh
+!install-cursor.sh
+!install-deskflow.sh
+!install-docker.sh
+!install-ghostty.sh
+!install-rust.sh
+!install-unruntime.sh
+!install-windsurf.sh
