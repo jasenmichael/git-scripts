@@ -4,8 +4,6 @@
 curl -fsSL https://raw.githubusercontent.com/jasenmichael/git-scripts/main/git-scripts | bash
 ```
 
-or
-
 ```bash
 git-scripts list
 git-scripts [script]
@@ -19,6 +17,8 @@ git-scripts install-deskflow
 git-scripts install-docker
 
 git-scripts install-ghostty
+
+git-scripts install-nordvpn
 
 git-scripts install-rust
 
